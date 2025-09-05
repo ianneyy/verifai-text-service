@@ -10,7 +10,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 
 app = Flask(__name__)
-nlp = spacy.load("en_core_web_md")
+nlp = spacy.load("en_core_web_sm")
 
 serpapi_key = os.getenv("SERPAPI_KEY")
 
