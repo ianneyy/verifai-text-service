@@ -10,7 +10,11 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 
 app = Flask(__name__)
-nlp = spacy.load("en_core_web_sm")
+
+# --- Lazy globals ---
+nlp = None
+semantic_model = None
+# nlp = spacy.load("en_core_web_sm")
 
 serpapi_key = os.getenv("SERPAPI_KEY")
 
@@ -23,7 +27,21 @@ stop_words = set(stopwords.words("english"))
 lemmatizer = WordNetLemmatizer()
 
 
-semantic_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+# semantic_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+
+# --- Lazy loaders ---
+def get_nlp():
+    global nlp
+    if nlp is None:
+        nlp = spacy.load("en_core_web_sm")  # load only when needed
+    return nlp
+
+def get_semantic_model():
+    global semantic_model
+    if semantic_model is None:
+        semantic_model = SentenceTransformer("paraphrase-MiniLM-L6-v2")
+    return semantic_model
+
 
 def calculate_similarity(claim_embedding, article_embedding):
     """Calculate cosine similarity between claim and article embeddings."""
@@ -32,11 +50,11 @@ def calculate_similarity(claim_embedding, article_embedding):
 
 def extract_entities(text):
     """Extract entities using custom Facebook NER model."""
-    doc = nlp(text)
+    doc = get_nlp(text)
     return {ent.text.lower() for ent in doc.ents}
 def get_embeddings(text):
     """Generate sentence embeddings."""
-    return semantic_model.encode(text)
+    return get_semantic_model.encode(text)
 
 
 def get_news_from_serpapi(query):
