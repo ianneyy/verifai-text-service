@@ -1,6 +1,8 @@
 import pandas as pd
 from flask import Flask, request, jsonify
 import json, os, requests, spacy
+import nltk
+
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
 from sentence_transformers import SentenceTransformer
@@ -19,8 +21,11 @@ semantic_model = None
 serpapi_key = os.getenv("SERPAPI_KEY")
 
 
-
-
+# Setup NLTK
+nltk.download("punkt")
+nltk.download("stopwords")
+nltk.download("wordnet")
+nltk.download("punkt_tab")
 
 
 stop_words = set(stopwords.words("english"))
