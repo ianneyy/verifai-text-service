@@ -55,11 +55,12 @@ def calculate_similarity(claim_embedding, article_embedding):
 
 def extract_entities(text):
     """Extract entities using custom Facebook NER model."""
-    doc = get_nlp(text)
+    nlp = get_nlp()   
+    doc = nlp(text)
     return {ent.text.lower() for ent in doc.ents}
 def get_embeddings(text):
     """Generate sentence embeddings."""
-    return get_semantic_model.encode(text)
+    return get_semantic_model().encode(text)
 
 
 def get_news_from_serpapi(query):
