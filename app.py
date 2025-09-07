@@ -1,10 +1,7 @@
 import pandas as pd
 from flask import Flask, request, jsonify
 import json, os, requests, spacy
-import nltk
 
-from nltk.corpus import stopwords
-from nltk.stem import WordNetLemmatizer
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -21,15 +18,7 @@ semantic_model = None
 serpapi_key = os.getenv("SERPAPI_KEY")
 
 
-# Setup NLTK
-nltk.download("punkt")
-nltk.download("stopwords")
-nltk.download("wordnet")
-nltk.download("punkt_tab")
-
-
-stop_words = set(stopwords.words("english"))
-lemmatizer = WordNetLemmatizer()
+# Note: Removed NLTK usage and downloads to avoid startup hangs on Render.
 
 
 # semantic_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
@@ -38,12 +27,14 @@ lemmatizer = WordNetLemmatizer()
 def get_nlp():
     global nlp
     if nlp is None:
-        nlp = spacy.load("en_core_web_sm")  # load only when needed
+        # Load only when needed. Ensure model is preinstalled via requirements.txt
+        nlp = spacy.load("en_core_web_sm")
     return nlp
 
 def get_semantic_model():
     global semantic_model
     if semantic_model is None:
+        # Lazy-load to reduce cold start time
         semantic_model = SentenceTransformer("paraphrase-MiniLM-L6-v2")
     return semantic_model
 
@@ -55,7 +46,7 @@ def calculate_similarity(claim_embedding, article_embedding):
 
 def extract_entities(text):
     """Extract entities using custom Facebook NER model."""
-    nlp = get_nlp()   
+    nlp = get_nlp()  
     doc = nlp(text)
     return {ent.text.lower() for ent in doc.ents}
 def get_embeddings(text):
@@ -72,7 +63,10 @@ def get_news_from_serpapi(query):
         "api_key": serpapi_key
     }
     try:
-        response = requests.get(url, params=params)
+        if not serpapi_key:
+            # If no API key, skip external call to avoid unnecessary 4xx
+            return []
+        response = requests.get(url, params=params, timeout=10)
         response.raise_for_status()
         results = response.json()
         return results.get("news_results", [])
@@ -92,11 +86,21 @@ def predict_remote(text):
         return {"error": str(e)}
     
 
+@app.route('/health', methods=['GET'])
+def health_check():
+    return jsonify({"status": "ok"}), 200
+
+
 @app.route('/text', methods=['POST'])
 def text_news():
     """Process text, clean with Gemini, and fetch related news."""
-    data = request.json
+    if not request.is_json:
+        return jsonify({"error": "Expected application/json body"}), 400
+
+    data = request.get_json(silent=True) or {}
     text = data.get('text')
+    if not text or not isinstance(text, str):
+        return jsonify({"error": "Field 'text' is required and must be a string"}), 400
 
 
     detected_entities = extract_entities(text)
@@ -122,6 +126,8 @@ def text_news():
 
     for article in news_articles:
         article_text = article.get('content', article.get('snippet', ""))
+        if not article_text:
+            continue
         article_embedding = get_embeddings(article_text)
         similarity = calculate_similarity(claim_embedding, article_embedding)
         print("similarity: ", similarity)
@@ -144,7 +150,7 @@ def text_news():
 
     else:
         print("⚠️ No matched articles found.")     
-    if prediction.lower() == "credible":
+    if isinstance(prediction, str) and prediction.lower() == "credible":
         score += 100
         print("prediction +50")
 
