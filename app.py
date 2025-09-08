@@ -9,7 +9,9 @@ from sklearn.metrics.pairwise import cosine_similarity
 app = Flask(__name__)
 
 serpapi_key = os.getenv("SERPAPI_KEY")
-nlp_service_url = os.getenv("NLP_SERVICE_URL")
+# nlp_service_url = os.getenv("NLP_SERVICE_URL")
+embeddings_service_url = os.getenv("EMBEDDINGS_SERVICE_URL")
+entities_service_url = os.getenv("ENTITIES_SERVICE_URL")
 
 
 # Note: Removed NLTK usage and downloads to avoid startup hangs on Render.
@@ -17,7 +19,7 @@ nlp_service_url = os.getenv("NLP_SERVICE_URL")
 
 def nlp_entities_remote(text):
     try:
-        resp = requests.post(f"{nlp_service_url}/entities", json={"text": text}, timeout=20)
+        resp = requests.post(f"{entities_service_url}/entities", json={"text": text}, timeout=20)
         resp.raise_for_status()
         return set(resp.json().get("entities", []))
     except Exception:
@@ -26,7 +28,7 @@ def nlp_entities_remote(text):
 
 def nlp_embedding_remote(text):
     try:
-        resp = requests.post(f"{nlp_service_url}/embeddings", json={"text": text}, timeout=30)
+        resp = requests.post(f"{embeddings_service_url}/embeddings", json={"text": text}, timeout=30)
         resp.raise_for_status()
         return resp.json().get("embedding", [])
     except Exception:
