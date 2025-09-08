@@ -5,3 +5,16 @@ services:
     plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: "gunicorn app:app"
+    envVars:
+      - key: NLP_SERVICE_URL
+        fromService:
+          type: web
+          name: nlp-service
+          property: url
+
+  - type: web
+    name: nlp-service
+    env: python
+    plan: free
+    buildCommand: pip install -r nlp_service/requirements.txt
+    startCommand: "gunicorn nlp_service.app:app"

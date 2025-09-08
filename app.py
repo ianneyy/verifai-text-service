@@ -1,8 +1,6 @@
 import pandas as pd
 from flask import Flask, request, jsonify
-import json, os, requests, spacy
-
-from sentence_transformers import SentenceTransformer
+import json, os, requests
 from sklearn.metrics.pairwise import cosine_similarity
 
 
@@ -10,33 +8,29 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 app = Flask(__name__)
 
-# --- Lazy globals ---
-nlp = None
-semantic_model = None
-# nlp = spacy.load("en_core_web_sm")
-
 serpapi_key = os.getenv("SERPAPI_KEY")
+nlp_service_url = os.getenv("NLP_SERVICE_URL")
 
 
 # Note: Removed NLTK usage and downloads to avoid startup hangs on Render.
 
 
-# semantic_model = SentenceTransformer('paraphrase-MiniLM-L6-v2')
+def nlp_entities_remote(text):
+    try:
+        resp = requests.post(f"{nlp_service_url}/entities", json={"text": text}, timeout=20)
+        resp.raise_for_status()
+        return set(resp.json().get("entities", []))
+    except Exception:
+        return set()
 
-# --- Lazy loaders ---
-def get_nlp():
-    global nlp
-    if nlp is None:
-        # Load only when needed. Ensure model is preinstalled via requirements.txt
-        nlp = spacy.load("en_core_web_sm")
-    return nlp
 
-def get_semantic_model():
-    global semantic_model
-    if semantic_model is None:
-        # Lazy-load to reduce cold start time
-        semantic_model = SentenceTransformer("paraphrase-MiniLM-L6-v2")
-    return semantic_model
+def nlp_embedding_remote(text):
+    try:
+        resp = requests.post(f"{nlp_service_url}/embeddings", json={"text": text}, timeout=30)
+        resp.raise_for_status()
+        return resp.json().get("embedding", [])
+    except Exception:
+        return []
 
 
 def calculate_similarity(claim_embedding, article_embedding):
@@ -45,13 +39,11 @@ def calculate_similarity(claim_embedding, article_embedding):
 
 
 def extract_entities(text):
-    """Extract entities using custom Facebook NER model."""
-    nlp = get_nlp()  
-    doc = nlp(text)
-    return {ent.text.lower() for ent in doc.ents}
+    """Extract entities via external NLP service."""
+    return nlp_entities_remote(text)
 def get_embeddings(text):
-    """Generate sentence embeddings."""
-    return get_semantic_model().encode(text)
+    """Generate sentence embeddings via external NLP service."""
+    return nlp_embedding_remote(text)
 
 
 def get_news_from_serpapi(query):
@@ -171,5 +163,4 @@ def text_news():
    
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port)
+    app.run(host="0.0.0.0", debug=True)
