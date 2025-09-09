@@ -72,7 +72,7 @@ def predict_remote(text):
         response = requests.post(
             "https://prediction-oq8s.onrender.com/predict",
             json={"text": text},  # match your Flask API
-            timeout=30
+            timeout=200
         )
         response.raise_for_status()
         return response.json()
